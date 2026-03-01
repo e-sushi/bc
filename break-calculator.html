@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Break Calculator</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0e0e0e;
+    --surface: #181818;
+    --border: #2a2a2a;
+    --accent: #c8f060;
+    --text: #f0f0f0;
+    --muted: #666;
+    --radius: 12px;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 16px;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 40px;
+  }
+
+  header h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(2rem, 8vw, 3.5rem);
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -2px;
+    color: var(--accent);
+  }
+
+  header p {
+    margin-top: 8px;
+    font-size: 0.75rem;
+    color: var(--muted);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 32px 28px;
+    width: 100%;
+    max-width: 420px;
+  }
+
+  .field {
+    margin-bottom: 20px;
+  }
+
+  label {
+    display: block;
+    font-size: 0.7rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  input {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 1.1rem;
+    padding: 12px 14px;
+    outline: none;
+    transition: border-color 0.2s;
+    -webkit-appearance: none;
+  }
+
+  input:focus {
+    border-color: var(--accent);
+  }
+
+  input[type="number"] {
+    -moz-appearance: textfield;
+  }
+
+  button {
+    width: 100%;
+    margin-top: 8px;
+    background: var(--accent);
+    color: #0e0e0e;
+    border: none;
+    border-radius: 8px;
+    font-family: 'Syne', sans-serif;
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    padding: 14px;
+    cursor: pointer;
+    transition: opacity 0.15s, transform 0.1s;
+  }
+
+  button:active {
+    opacity: 0.85;
+    transform: scale(0.98);
+  }
+
+  .results {
+    margin-top: 28px;
+    display: none;
+  }
+
+  .results.visible {
+    display: block;
+    animation: fadeIn 0.3s ease;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .results-label {
+    font-size: 0.7rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 14px;
+  }
+
+  .break-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .break-item {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 16px;
+    animation: slideIn 0.25s ease both;
+  }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateX(-10px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+
+  .break-num {
+    font-size: 0.65rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--muted);
+    min-width: 52px;
+  }
+
+  .break-time {
+    font-size: 1.3rem;
+    font-weight: 500;
+    color: var(--accent);
+    letter-spacing: 1px;
+  }
+
+  .error {
+    color: #ff6b6b;
+    font-size: 0.8rem;
+    margin-top: 10px;
+    display: none;
+  }
+
+  .error.visible { display: block; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>BREAK<br>TIMER</h1>
+  <p>interval calculator</p>
+</header>
+
+<div class="card">
+  <div class="field">
+    <label>Start Time</label>
+    <input type="time" id="startTime" />
+  </div>
+
+  <div class="field">
+    <label>End Time</label>
+    <input type="time" id="endTime" />
+  </div>
+
+  <div class="field">
+    <label>Number of Breaks</label>
+    <input type="number" id="numBreaks" min="1" max="20" placeholder="e.g. 3" />
+  </div>
+
+  <p class="error" id="error">⚠ Please check your inputs — end time must be after start time.</p>
+
+  <button onclick="calculate()">CALCULATE BREAKS</button>
+
+  <div class="results" id="results">
+    <div class="results-label">Your break times</div>
+    <div class="break-list" id="breakList"></div>
+  </div>
+</div>
+
+<script>
+  function calculate() {
+    const startVal = document.getElementById('startTime').value;
+    const endVal   = document.getElementById('endTime').value;
+    const numBreaks = parseInt(document.getElementById('numBreaks').value);
+    const error   = document.getElementById('error');
+    const results = document.getElementById('results');
+    const list    = document.getElementById('breakList');
+
+    error.classList.remove('visible');
+    results.classList.remove('visible');
+
+    if (!startVal || !endVal || isNaN(numBreaks) || numBreaks < 1) {
+      error.textContent = '⚠ Please fill in all fields.';
+      error.classList.add('visible');
+      return;
+    }
+
+    const [sh, sm] = startVal.split(':').map(Number);
+    const [eh, em] = endVal.split(':').map(Number);
+    const startMins = sh * 60 + sm;
+    const endMins   = eh * 60 + em;
+
+    if (endMins <= startMins) {
+      error.textContent = '⚠ End time must be after start time.';
+      error.classList.add('visible');
+      return;
+    }
+
+    const total = endMins - startMins;
+    const gap   = total / (numBreaks + 1);
+
+    list.innerHTML = '';
+
+    for (let i = 1; i <= numBreaks; i++) {
+      const breakMins = startMins + Math.round(gap * i);
+      const h = Math.floor(breakMins / 60) % 24;
+      const m = breakMins % 60;
+      const timeStr = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+
+      const item = document.createElement('div');
+      item.className = 'break-item';
+      item.style.animationDelay = `${(i - 1) * 0.06}s`;
+      item.innerHTML = `
+        <span class="break-num">Break ${i}</span>
+        <span class="break-time">${timeStr}</span>
+      `;
+      list.appendChild(item);
+    }
+
+    results.classList.add('visible');
+  }
+
+  // Allow Enter key to trigger calculate
+  document.addEventListener('keydown', e => { if (e.key === 'Enter') calculate(); });
+</script>
+
+</body>
+</html>
