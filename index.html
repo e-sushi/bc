@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0f1117" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Break Calc" />
+  <meta name="description" content="Optimal break calculator for your work day" />
+  <link rel="manifest" href="manifest.json" />
+  <title>Break Calculator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Barlow+Condensed:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #181c26;
+      --surface2: #1e2333;
+      --border: #2a3045;
+      --accent: #f5a623;
+      --accent2: #e8563a;
+      --green: #3dd68c;
+      --text: #e8eaf0;
+      --muted: #6b7280;
+      --mono: 'DM Mono', monospace;
+      --display: 'Barlow Condensed', sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--mono);
+      overflow-x: hidden;
+    }
+
+    body {
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* BACKGROUND GRID */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(245,166,35,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(245,166,35,0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .app {
+      position: relative;
+      z-index: 1;
+      max-width: 480px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 0 0 32px;
+      display: flex;
+      flex-direction: column;
+      min-height: 100dvh;
+    }
+
+    /* HEADER */
+    header {
+      padding: 28px 24px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: flex-end;
+      gap: 12px;
+    }
+
+    .logo-mark {
+      width: 36px;
+      height: 36px;
+      background: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .logo-mark svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    .header-text h1 {
+      font-family: var(--display);
+      font-size: 26px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      line-height: 1;
+      color: var(--text);
+    }
+
+    .header-text p {
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-top: 3px;
+    }
+
+    /* MAIN CONTENT */
+    main {
+      flex: 1;
+      padding: 24px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    /* INPUT CARD */
+    .input-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 20px;
+    }
+
+    .section-label {
+      font-family: var(--display);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .section-label::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    .inputs-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .input-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .input-row label {
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      min-width: 100px;
+      flex-shrink: 0;
+    }
+
+    .input-row input[type="time"] {
+      flex: 1;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 20px;
+      font-weight: 500;
+      padding: 10px 12px;
+      outline: none;
+      transition: border-color 0.2s;
+      -webkit-appearance: none;
+      appearance: none;
+      cursor: pointer;
+    }
+
+    .input-row input[type="time"]:focus {
+      border-color: var(--accent);
+    }
+
+    .input-row input[type="time"]::-webkit-calendar-picker-indicator {
+      filter: invert(0.5);
+      cursor: pointer;
+    }
+
+    .badge {
+      font-size: 9px;
+      font-family: var(--display);
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 2px 6px;
+      background: var(--surface2);
+      color: var(--muted);
+      border: 1px solid var(--border);
+      white-space: nowrap;
+    }
+
+    /* STEPPER */
+    .stepper {
+      display: flex;
+      align-items: stretch;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      flex: 1;
+    }
+
+    .step-btn {
+      background: var(--surface2);
+      border: none;
+      color: var(--accent);
+      font-size: 20px;
+      font-weight: 300;
+      line-height: 1;
+      width: 44px;
+      cursor: pointer;
+      transition: background 0.15s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      -webkit-appearance: none;
+      user-select: none;
+      flex-shrink: 0;
+    }
+
+    .step-btn:active { background: var(--border); }
+
+    .step-val {
+      flex: 1;
+      text-align: center;
+      font-size: 20px;
+      font-weight: 500;
+      font-family: var(--mono);
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 0;
+      border-left: 1px solid var(--border);
+      border-right: 1px solid var(--border);
+    }
+
+    /* CALCULATE BUTTON */
+    .calc-btn {
+      width: 100%;
+      background: var(--accent);
+      color: #0f1117;
+      border: none;
+      padding: 16px 24px;
+      font-family: var(--display);
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      -webkit-appearance: none;
+    }
+
+    .calc-btn:active { transform: scale(0.98); background: #e09520; }
+
+    .calc-btn svg { width: 18px; height: 18px; }
+
+    /* ERROR */
+    .error-msg {
+      background: rgba(232,86,58,0.12);
+      border: 1px solid rgba(232,86,58,0.4);
+      color: var(--accent2);
+      font-size: 12px;
+      padding: 10px 14px;
+      letter-spacing: 0.05em;
+      display: none;
+    }
+
+    .error-msg.show { display: block; }
+
+    /* SCHEDULE OUTPUT */
+    .schedule-card {
+      display: none;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      overflow: hidden;
+      animation: slideUp 0.35s cubic-bezier(0.22,1,0.36,1);
+    }
+
+    .schedule-card.show { display: block; }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .schedule-header {
+      padding: 16px 20px;
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .schedule-title {
+      font-family: var(--display);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--accent);
+    }
+
+    .total-time {
+      font-size: 11px;
+      color: var(--muted);
+      font-family: var(--mono);
+    }
+
+    .timeline {
+      padding: 8px 0;
+    }
+
+    .timeline-item {
+      display: flex;
+      align-items: stretch;
+      padding: 0 20px;
+      min-height: 52px;
+      position: relative;
+      animation: fadeIn 0.3s ease both;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateX(-8px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+
+    .timeline-item:nth-child(1) { animation-delay: 0.05s; }
+    .timeline-item:nth-child(2) { animation-delay: 0.10s; }
+    .timeline-item:nth-child(3) { animation-delay: 0.15s; }
+    .timeline-item:nth-child(4) { animation-delay: 0.20s; }
+    .timeline-item:nth-child(5) { animation-delay: 0.25s; }
+    .timeline-item:nth-child(6) { animation-delay: 0.30s; }
+    .timeline-item:nth-child(7) { animation-delay: 0.35s; }
+    .timeline-item:nth-child(8) { animation-delay: 0.40s; }
+    .timeline-item:nth-child(9) { animation-delay: 0.45s; }
+
+    /* Left time column */
+    .t-time {
+      width: 88px;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 8px 0;
+    }
+
+    .t-time .t-start {
+      font-size: 15px;
+      font-weight: 500;
+      color: var(--text);
+      line-height: 1;
+    }
+
+    .t-time .t-end {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    /* Spine */
+    .t-spine {
+      width: 24px;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 4px 0;
+    }
+
+    .t-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      margin-top: 12px;
+    }
+
+    .t-line {
+      width: 2px;
+      flex: 1;
+      margin-top: 4px;
+    }
+
+    /* Content */
+    .t-content {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 0 8px 12px;
+      border-bottom: 1px solid rgba(42,48,69,0.5);
+    }
+
+    .timeline-item:last-child .t-content { border-bottom: none; }
+
+    .t-name {
+      font-family: var(--display);
+      font-size: 17px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .t-duration {
+      font-size: 11px;
+      color: var(--muted);
+      font-family: var(--mono);
+      white-space: nowrap;
+    }
+
+    /* Type colors */
+    .type-work .t-dot { background: var(--green); }
+    .type-work .t-line { background: linear-gradient(to bottom, var(--green), rgba(61,214,140,0.15)); }
+    .type-work .t-name { color: var(--green); }
+
+    .type-break .t-dot { background: var(--accent); }
+    .type-break .t-line { background: linear-gradient(to bottom, var(--accent), rgba(245,166,35,0.15)); }
+    .type-break .t-name { color: var(--accent); }
+
+    .type-lunch .t-dot { background: var(--accent2); }
+    .type-lunch .t-line { background: linear-gradient(to bottom, var(--accent2), rgba(232,86,58,0.15)); }
+    .type-lunch .t-name { color: var(--accent2); }
+
+    .type-end .t-dot { background: var(--muted); }
+    .type-end .t-line { display: none; }
+    .type-end .t-name { color: var(--muted); }
+
+    /* STATS ROW */
+    .stats-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      border-top: 1px solid var(--border);
+    }
+
+    .stat {
+      padding: 14px 16px;
+      border-right: 1px solid var(--border);
+      text-align: center;
+    }
+
+    .stat:last-child { border-right: none; }
+
+    .stat-val {
+      font-family: var(--display);
+      font-size: 22px;
+      font-weight: 700;
+      line-height: 1;
+      color: var(--text);
+    }
+
+    .stat-lbl {
+      font-size: 9px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    /* FOOTER */
+    footer {
+      padding: 16px 24px;
+      border-top: 1px solid var(--border);
+      text-align: center;
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    /* Install banner */
+    #install-banner {
+      display: none;
+      margin: 0 20px;
+      background: rgba(245,166,35,0.08);
+      border: 1px solid rgba(245,166,35,0.3);
+      padding: 12px 16px;
+      align-items: center;
+      gap: 12px;
+      animation: slideUp 0.3s ease;
+    }
+
+    #install-banner.show { display: flex; }
+
+    #install-banner p {
+      flex: 1;
+      font-size: 11px;
+      color: var(--accent);
+      letter-spacing: 0.05em;
+    }
+
+    #install-btn {
+      background: var(--accent);
+      color: #0f1117;
+      border: none;
+      padding: 8px 14px;
+      font-family: var(--display);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      cursor: pointer;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    #dismiss-banner {
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 18px;
+      padding: 0 2px;
+      line-height: 1;
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <div class="logo-mark">
+      <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="10" cy="10" r="8" stroke="#0f1117" stroke-width="2"/>
+        <line x1="10" y1="4" x2="10" y2="10" stroke="#0f1117" stroke-width="2" stroke-linecap="round"/>
+        <line x1="10" y1="10" x2="14" y2="13" stroke="#0f1117" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div class="header-text">
+      <h1>Break Calculator</h1>
+      <p>Optimal daily schedule planner</p>
+    </div>
+  </header>
+
+  <main>
+
+    <!-- INSTALL BANNER -->
+    <div id="install-banner">
+      <p>Install this app on your device for quick access</p>
+      <button id="install-btn">Install</button>
+      <button id="dismiss-banner">×</button>
+    </div>
+
+    <!-- INPUTS -->
+    <div class="input-card">
+      <div class="section-label">Work Hours</div>
+      <div class="inputs-grid">
+
+        <div class="input-row">
+          <label>Start Work</label>
+          <input type="time" id="workStart" value="09:00" />
+        </div>
+
+        <div class="input-row">
+          <label>Lunch Start</label>
+          <input type="time" id="lunchStart" value="12:30" />
+          <span class="badge">30 min</span>
+        </div>
+
+        <div class="input-row">
+          <label>End Work</label>
+          <input type="time" id="workEnd" value="17:30" />
+        </div>
+
+      </div>
+    </div>
+
+    <!-- BREAK CONFIG CARD -->
+    <div class="input-card">
+      <div class="section-label">Break Settings</div>
+      <div class="inputs-grid">
+
+        <div class="input-row">
+          <label>No. of Breaks</label>
+          <div class="stepper" id="numBreaksStepper">
+            <button class="step-btn" onclick="stepBreaks(-1)">−</button>
+            <span class="step-val" id="numBreaksVal">3</span>
+            <button class="step-btn" onclick="stepBreaks(1)">+</button>
+          </div>
+          <span class="badge" id="numBreaksBadge">3 breaks</span>
+        </div>
+
+        <div class="input-row">
+          <label>Break Length</label>
+          <div class="stepper" id="breakDurStepper">
+            <button class="step-btn" onclick="stepDur(-1)">−</button>
+            <span class="step-val" id="breakDurVal">8</span>
+            <button class="step-btn" onclick="stepDur(1)">+</button>
+          </div>
+          <span class="badge" id="breakDurBadge">mins each</span>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ERROR -->
+    <div class="error-msg" id="errorMsg"></div>
+
+    <!-- BUTTON -->
+    <button class="calc-btn" id="calcBtn" onclick="calculate()">
+      <svg viewBox="0 0 18 18" fill="none">
+        <path d="M9 2v5l3 3" stroke="#0f1117" stroke-width="2" stroke-linecap="round"/>
+        <circle cx="9" cy="9" r="7" stroke="#0f1117" stroke-width="2"/>
+      </svg>
+      Calculate Schedule
+    </button>
+
+    <!-- SCHEDULE -->
+    <div class="schedule-card" id="scheduleCard">
+      <div class="schedule-header">
+        <span class="schedule-title">Today's Schedule</span>
+        <span class="total-time" id="totalTimeLabel"></span>
+      </div>
+      <div class="timeline" id="timeline"></div>
+      <div class="stats-row" id="statsRow"></div>
+    </div>
+
+  </main>
+
+  <footer>Break Calc &mdash; v1.0 &mdash; Works offline</footer>
+</div>
+
+<script>
+  // ─── Utils ────────────────────────────────────────────────────────────────
+
+  function parseTime(str) {
+    const [h, m] = str.split(':').map(Number);
+    return h * 60 + m;
+  }
+
+  function formatTime(mins) {
+    const h = Math.floor(mins / 60) % 24;
+    const m = mins % 60;
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const hh = h % 12 || 12;
+    return `${hh}:${String(m).padStart(2,'0')} ${ampm}`;
+  }
+
+  function formatDuration(mins) {
+    if (mins >= 60) {
+      const h = Math.floor(mins/60);
+      const m = mins % 60;
+      return m > 0 ? `${h}h ${m}m` : `${h}h`;
+    }
+    return `${mins}m`;
+  }
+
+  // ─── Stepper State ────────────────────────────────────────────────────────
+
+  let numBreaks = 3;
+  let breakDur  = 8;
+
+  function stepBreaks(delta) {
+    numBreaks = Math.max(1, Math.min(6, numBreaks + delta));
+    document.getElementById('numBreaksVal').textContent = numBreaks;
+    document.getElementById('numBreaksBadge').textContent = numBreaks === 1 ? '1 break' : `${numBreaks} breaks`;
+  }
+
+  function stepDur(delta) {
+    breakDur = Math.max(1, Math.min(30, breakDur + delta));
+    document.getElementById('breakDurVal').textContent = breakDur;
+  }
+
+  // ─── Break Placement Algorithm ────────────────────────────────────────────
+
+  function calculateBreaks(workStart, lunchStart, lunchEnd, workEnd) {
+    const segA = { start: workStart, end: lunchStart, dur: lunchStart - workStart };
+    const segB = { start: lunchEnd,  end: workEnd,    dur: workEnd - lunchEnd };
+    const totalWork = segA.dur + segB.dur;
+
+    const chunkSize = totalWork / (numBreaks + 1);
+    const idealPositions = Array.from({ length: numBreaks }, (_, i) => chunkSize * (i + 1));
+
+    function workTimeToWall(wt) {
+      if (wt <= segA.dur) return workStart + wt;
+      return lunchEnd + (wt - segA.dur);
+    }
+
+    const breaks = [];
+    const MIN_GAP = Math.max(10, Math.ceil(breakDur * 1.2));
+
+    for (let i = 0; i < numBreaks; i++) {
+      const wallIdeal = workTimeToWall(idealPositions[i]);
+      let breakStart;
+
+      if (wallIdeal < lunchStart - breakDur - MIN_GAP) {
+        const aBreaksBefore = breaks.filter(b => b.end <= lunchStart).length;
+        const earliest = workStart + MIN_GAP + aBreaksBefore * (breakDur + MIN_GAP);
+        const latest   = lunchStart - breakDur - MIN_GAP;
+        breakStart = Math.max(earliest, Math.min(Math.round(wallIdeal), latest));
+      } else if (wallIdeal > lunchEnd + MIN_GAP) {
+        const bBreaksBefore = breaks.filter(b => b.start >= lunchEnd).length;
+        const earliest = lunchEnd + MIN_GAP + bBreaksBefore * (breakDur + MIN_GAP);
+        const latest   = workEnd - breakDur - MIN_GAP;
+        breakStart = Math.max(earliest, Math.min(Math.round(wallIdeal), latest));
+      } else {
+        const bBreaksBefore = breaks.filter(b => b.start >= lunchEnd).length;
+        const earliest = lunchEnd + MIN_GAP + bBreaksBefore * (breakDur + MIN_GAP);
+        const latest   = workEnd - breakDur - MIN_GAP;
+        breakStart = Math.max(earliest, Math.min(lunchEnd + MIN_GAP, latest));
+      }
+
+      breaks.push({ start: breakStart, end: breakStart + breakDur });
+    }
+
+    return breaks;
+  }
+
+  // ─── Main Calculate ───────────────────────────────────────────────────────
+
+  function calculate() {
+    const wsVal = document.getElementById('workStart').value;
+    const lsVal = document.getElementById('lunchStart').value;
+    const weVal = document.getElementById('workEnd').value;
+    const errEl = document.getElementById('errorMsg');
+
+    errEl.classList.remove('show');
+
+    if (!wsVal || !lsVal || !weVal) {
+      showError('Please fill in all three times.'); return;
+    }
+
+    const ws = parseTime(wsVal);
+    const ls = parseTime(lsVal);
+    const le = ls + 30;
+    const we = parseTime(weVal);
+
+    const MIN_GAP_V = Math.max(10, Math.ceil(breakDur * 1.2));
+    const minSegNeeded = (breakDur + MIN_GAP_V) * numBreaks + MIN_GAP_V;
+    if (ws >= ls)   { showError('Work start must be before lunch start.'); return; }
+    if (le >= we)   { showError('Work must continue after lunch ends.'); return; }
+    if (we - ws - 30 < minSegNeeded) {
+      showError(`Work day too short for ${numBreaks} × ${breakDur}-min break${numBreaks>1?'s':''}. Try fewer or shorter breaks.`); return;
+    }
+
+    const breaks = calculateBreaks(ws, ls, le, we);
+
+    // Verify breaks are valid
+    for (const b of breaks) {
+      if (b.start < ws || b.end > we || (b.start < le && b.end > ls)) {
+        showError('Could not place all breaks without conflicts. Try adjusting your schedule.'); return;
+      }
+    }
+
+    renderSchedule(ws, ls, le, we, breaks);
+  }
+
+  function showError(msg) {
+    const el = document.getElementById('errorMsg');
+    el.textContent = msg;
+    el.classList.add('show');
+    document.getElementById('scheduleCard').classList.remove('show');
+  }
+
+  // ─── Render ───────────────────────────────────────────────────────────────
+
+  function renderSchedule(ws, ls, le, we, breaks) {
+    const card = document.getElementById('scheduleCard');
+    const timeline = document.getElementById('timeline');
+    const statsRow = document.getElementById('statsRow');
+    const totalLabel = document.getElementById('totalTimeLabel');
+
+    // Build segments
+    const events = [];
+    let cursor = ws;
+    let bNum = 0;
+
+    const allEvents = [
+      ...breaks.map(b => ({ ...b, type: 'break' })),
+      { start: ls, end: le, type: 'lunch' }
+    ].sort((a,b) => a.start - b.start);
+
+    for (const ev of allEvents) {
+      if (ev.start > cursor) {
+        events.push({ start: cursor, end: ev.start, type: 'work' });
+      }
+      if (ev.type === 'break') {
+        bNum++;
+        events.push({ ...ev, label: `Break ${bNum}` });
+      } else {
+        events.push({ ...ev, label: 'Lunch' });
+      }
+      cursor = ev.end;
+    }
+
+    if (cursor < we) {
+      events.push({ start: cursor, end: we, type: 'work' });
+    }
+
+    events.push({ start: we, end: null, type: 'end', label: 'End of Day' });
+
+    // Labels for work segments
+    let workSegIdx = 0;
+    const workLabels = ['Morning', 'Pre-Lunch', 'Early Afternoon', 'Afternoon', 'Late Afternoon', 'Final Stretch'];
+    for (const ev of events) {
+      if (ev.type === 'work') {
+        ev.label = workLabels[workSegIdx++] || 'Work';
+      }
+    }
+
+    // Render timeline
+    timeline.innerHTML = events.map(ev => {
+      const dur = ev.end ? formatDuration(ev.end - ev.start) : '';
+      const endStr = ev.end ? `→ ${formatTime(ev.end)}` : '';
+      return `
+        <div class="timeline-item type-${ev.type}">
+          <div class="t-time">
+            <div class="t-start">${formatTime(ev.start)}</div>
+            ${endStr ? `<div class="t-end">${endStr}</div>` : ''}
+          </div>
+          <div class="t-spine">
+            <div class="t-dot"></div>
+            <div class="t-line"></div>
+          </div>
+          <div class="t-content">
+            <span class="t-name">${ev.label || ''}</span>
+            <span class="t-duration">${dur}</span>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    // Stats
+    const totalMins = we - ws;
+    const breakMins = breaks.length * breakDur;
+    const lunchMins = 30;
+    const workMins  = totalMins - breakMins - lunchMins;
+
+    totalLabel.textContent = formatDuration(totalMins) + ' total';
+
+    statsRow.innerHTML = `
+      <div class="stat">
+        <div class="stat-val" style="color:var(--green)">${formatDuration(workMins)}</div>
+        <div class="stat-lbl">Work Time</div>
+      </div>
+      <div class="stat">
+        <div class="stat-val" style="color:var(--accent)">${breaks.length} × ${breakDur}m</div>
+        <div class="stat-lbl">Breaks</div>
+      </div>
+      <div class="stat">
+        <div class="stat-val" style="color:var(--accent2)">30m</div>
+        <div class="stat-lbl">Lunch</div>
+      </div>
+    `;
+
+    card.classList.add('show');
+    card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  // ─── PWA Install ──────────────────────────────────────────────────────────
+
+  let deferredPrompt;
+  const banner = document.getElementById('install-banner');
+  const installBtn = document.getElementById('install-btn');
+  const dismissBtn = document.getElementById('dismiss-banner');
+
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();
+    deferredPrompt = e;
+    banner.classList.add('show');
+  });
+
+  installBtn.addEventListener('click', async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    deferredPrompt = null;
+    banner.classList.remove('show');
+  });
+
+  dismissBtn.addEventListener('click', () => {
+    banner.classList.remove('show');
+  });
+
+  // Allow Enter key
+  document.querySelectorAll('input[type="time"]').forEach(el => {
+    el.addEventListener('keydown', e => { if (e.key === 'Enter') calculate(); });
+  });
+
+  // Register Service Worker
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
+</script>
+</body>
+</html>
