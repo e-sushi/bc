@@ -683,48 +683,60 @@
   }
 
   // ─── Break Placement Algorithm ────────────────────────────────────────────
+  //
+  // Two independent work segments: AM (workStart→lunchStart) and PM (lunchEnd→workEnd).
+  // Breaks are distributed proportionally between the two segments based on their
+  // duration. Within each segment, breaks divide the *pure work time* equally —
+  // i.e. the work slots between breaks are all the same length.
+  //
+  // Example: AM=3h, PM=2h, 5 breaks → 3 breaks in AM, 2 in PM.
+  // In AM with 3 breaks: 180 min work / 4 slots = 45 min each.
+  // Breaks land at: workStart+45, +45+8+45, +45+8+45+8+45 …
+
+  function placBreaksInSegment(segStart, segEnd, count) {
+    // Divide segment into (count+1) equal pure-work slots.
+    // Pure work time = segEnd - segStart - count * breakDur
+    const pureWork = segEnd - segStart - count * breakDur;
+    const slot = pureWork / (count + 1);
+    const result = [];
+    let cursor = segStart;
+    for (let i = 0; i < count; i++) {
+      cursor += slot;          // advance one work slot
+      result.push({ start: Math.round(cursor), end: Math.round(cursor) + breakDur });
+      cursor += breakDur;      // skip over the break itself
+    }
+    return result;
+  }
 
   function calculateBreaks(workStart, lunchStart, lunchEnd, workEnd) {
-    const segA = { start: workStart, end: lunchStart, dur: lunchStart - workStart };
-    const segB = { start: lunchEnd,  end: workEnd,    dur: workEnd - lunchEnd };
-    const totalWork = segA.dur + segB.dur;
+    const durA = lunchStart - workStart;   // AM work duration
+    const durB = workEnd - lunchEnd;       // PM work duration
+    const total = durA + durB;
 
-    const chunkSize = totalWork / (numBreaks + 1);
-    const idealPositions = Array.from({ length: numBreaks }, (_, i) => chunkSize * (i + 1));
+    // Distribute breaks proportionally; round, then fix remainder to keep sum = numBreaks
+    let countA = Math.round(numBreaks * durA / total);
+    let countB = numBreaks - countA;
 
-    function workTimeToWall(wt) {
-      if (wt <= segA.dur) return workStart + wt;
-      return lunchEnd + (wt - segA.dur);
+    // Ensure neither segment gets more breaks than it can fit
+    // Min pure-work slot must be >= breakDur (so each gap is at least as long as a break)
+    const minSlot = breakDur;
+    const maxA = Math.max(0, Math.floor((durA - minSlot) / (breakDur + minSlot)));
+    const maxB = Math.max(0, Math.floor((durB - minSlot) / (breakDur + minSlot)));
+
+    countA = Math.min(countA, maxA);
+    countB = Math.min(countB, maxB);
+    // If we lost breaks due to capping, try to recover them in the other segment
+    const assigned = countA + countB;
+    const deficit  = numBreaks - assigned;
+    if (deficit > 0) {
+      const extraA = Math.min(deficit, maxA - countA);
+      countA += extraA;
+      countB += Math.min(deficit - extraA, maxB - countB);
     }
 
-    const breaks = [];
-    const MIN_GAP = Math.max(10, Math.ceil(breakDur * 1.2));
-
-    for (let i = 0; i < numBreaks; i++) {
-      const wallIdeal = workTimeToWall(idealPositions[i]);
-      let breakStart;
-
-      if (wallIdeal < lunchStart - breakDur - MIN_GAP) {
-        const aBreaksBefore = breaks.filter(b => b.end <= lunchStart).length;
-        const earliest = workStart + MIN_GAP + aBreaksBefore * (breakDur + MIN_GAP);
-        const latest   = lunchStart - breakDur - MIN_GAP;
-        breakStart = Math.max(earliest, Math.min(Math.round(wallIdeal), latest));
-      } else if (wallIdeal > lunchEnd + MIN_GAP) {
-        const bBreaksBefore = breaks.filter(b => b.start >= lunchEnd).length;
-        const earliest = lunchEnd + MIN_GAP + bBreaksBefore * (breakDur + MIN_GAP);
-        const latest   = workEnd - breakDur - MIN_GAP;
-        breakStart = Math.max(earliest, Math.min(Math.round(wallIdeal), latest));
-      } else {
-        const bBreaksBefore = breaks.filter(b => b.start >= lunchEnd).length;
-        const earliest = lunchEnd + MIN_GAP + bBreaksBefore * (breakDur + MIN_GAP);
-        const latest   = workEnd - breakDur - MIN_GAP;
-        breakStart = Math.max(earliest, Math.min(lunchEnd + MIN_GAP, latest));
-      }
-
-      breaks.push({ start: breakStart, end: breakStart + breakDur });
-    }
-
-    return breaks;
+    const breaksA = placBreaksInSegment(workStart, lunchStart, countA);
+    const breaksB = placBreaksInSegment(lunchEnd,  workEnd,    countB);
+    return [...breaksA, ...breaksB];
   }
 
   // ─── Main Calculate ───────────────────────────────────────────────────────
@@ -746,11 +758,14 @@
     const le = ls + 30;
     const we = parseTime(weVal);
 
-    const MIN_GAP_V = Math.max(10, Math.ceil(breakDur * 1.2));
-    const minSegNeeded = (breakDur + MIN_GAP_V) * numBreaks + MIN_GAP_V;
-    if (ws >= ls)   { showError('Work start must be before lunch start.'); return; }
-    if (le >= we)   { showError('Work must continue after lunch ends.'); return; }
-    if (we - ws - 30 < minSegNeeded) {
+    if (ws >= ls) { showError('Work start must be before lunch start.'); return; }
+    if (le >= we) { showError('Work must continue after lunch ends.'); return; }
+    // Each segment needs at least (numBreaks+1) slots of breakDur each, plus numBreaks * breakDur
+    // Minimum segment: (count+1)*breakDur + count*breakDur = (2*count+1)*breakDur
+    // We check the combined day can fit all breaks with equal slots >= breakDur
+    const durA_v = ls - ws, durB_v = we - le;
+    const minPerBreak = 2 * breakDur; // one slot + one break, minimum
+    if (durA_v + durB_v < numBreaks * minPerBreak + breakDur) {
       showError(`Work day too short for ${numBreaks} × ${breakDur}-min break${numBreaks>1?'s':''}. Try fewer or shorter breaks.`); return;
     }
 
@@ -811,12 +826,8 @@
     events.push({ start: we, end: null, type: 'end', label: 'End of Day' });
 
     // Labels for work segments
-    let workSegIdx = 0;
-    const workLabels = ['Morning', 'Pre-Lunch', 'Early Afternoon', 'Afternoon', 'Late Afternoon', 'Final Stretch'];
     for (const ev of events) {
-      if (ev.type === 'work') {
-        ev.label = workLabels[workSegIdx++] || 'Work';
-      }
+      if (ev.type === 'work') ev.label = 'Work';
     }
 
     // Render timeline
